@@ -85,10 +85,21 @@ export const myMusicScreen: Screen = (root) => {
               h('button', {
                 class: 'round-btn',
                 'aria-label': `Delete ${r.name}`,
-                onclick: () => {
-                  if (confirm(`Delete “${r.name}”?`)) {
+                // Two taps to delete, so a small child can't lose a song by accident.
+                onclick: (e: MouseEvent) => {
+                  const btn = e.currentTarget as HTMLButtonElement;
+                  if (btn.dataset.armed) {
                     deleteRecording(r.id);
                     render();
+                  } else {
+                    btn.dataset.armed = '1';
+                    btn.textContent = '❓';
+                    btn.setAttribute('aria-label', `Tap again to delete ${r.name}`);
+                    setTimeout(() => {
+                      delete btn.dataset.armed;
+                      btn.textContent = '🗑️';
+                      btn.setAttribute('aria-label', `Delete ${r.name}`);
+                    }, 2500);
                   }
                 },
               }, '🗑️'),
