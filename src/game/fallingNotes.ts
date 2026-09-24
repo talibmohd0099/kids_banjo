@@ -1,7 +1,7 @@
 // Falling Notes game rules. Notes fall down their string lane; play that string
 // when the note reaches the glowing line. Pure logic (time is passed in), unit tested.
 //
-// Beginner  : the song waits for you, and the violin plays the right note for you.
+// Beginner  : the violin plays the right note for you (and, with "wait", the song waits for you).
 // Explorer  : the song keeps going; your finger must be near the right spot.
 // Free      : real timing and real finger position.
 
@@ -43,9 +43,9 @@ export class FallingNotesGame {
   waiting = false;
   streak = 0;
 
-  constructor(readonly song: Song, readonly level: AssistLevel) {
+  constructor(readonly song: Song, readonly level: AssistLevel, opts: { wait?: boolean } = {}) {
     this.secPerBeat = 60 / (song.tempo * TEMPO_SCALE[level]);
-    this.waitMode = level === 'beginner';
+    this.waitMode = opts.wait ?? level === 'beginner';
     this.travel = Math.max(1.6, this.secPerBeat * 4);
     this.notes = song.notes.map((n, index) => {
       const where = stringForNote(n.midi);

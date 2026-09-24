@@ -10,9 +10,11 @@ export interface Settings {
   labels: LabelStyle | 'off';
   skin: SkinId;
   openStrings: boolean;
+  /** Songs keep moving on the beat, or wait for each note. */
+  songPace: 'beat' | 'wait';
 }
 
-const DEFAULTS: Settings = { assist: 'beginner', labels: 'letters', skin: 'wood', openStrings: false };
+const DEFAULTS: Settings = { assist: 'beginner', labels: 'letters', skin: 'wood', openStrings: false, songPace: 'beat' };
 
 export function load<T>(key: string, fallback: T): T {
   try {

@@ -9,7 +9,7 @@ A touch violin for kids aged 4 to 12. It should feel like a real instrument whil
 Every step is fully interactive. Progress is saved in the browser (localStorage), so it's still there after you close the app:
 
 - **Play hub** offers Song Journey, Free Violin and Magic Orchestra. After some free play, a "Ready to play a song?" button invites the child into the songs.
-- **Guided playing**: 👂 *Listen* lets a fairy play the tune first. In Beginner mode the song waits for each note, and a pointing hand shows which string to play.
+- **Guided playing**: 👂 *Listen* lets a fairy play the tune first. After a "3, 2, 1" count-in, the song **keeps the beat** while the fairy softly plays the melody along with the child. A ring and a pointing hand show where to touch, and each note's tail shows how long to hold it. Settings → Songs → *Wait for me* makes the song stop on each note instead.
 - **Score** shows stars and a kind message (never "FAILED").
 - **Reward** plants the song's flower, unlocks the next song and grows the Magic Tree.
 - **Music Garden** has one plant per song that grows with better stars, the Magic Tree (100 songs to the giant tree), and stats for plants, notes played, practice minutes and the day streak. Tap a plant to play its song again.
@@ -18,7 +18,7 @@ Every step is fully interactive. Progress is saved in the browser (localStorage)
 
 | Feature | How it works |
 | --- | --- |
-| Realistic touch violin | 4 strings (G D A E) drawn as a violin neck. The sound is made live in the browser, so there are no audio files. |
+| Realistic touch violin | 4 strings (G D A E) drawn as a violin neck. The sound is made live in the browser from a bowed-string harmonic recipe, with natural vibrato on held notes, a slide into each note and bow-change articulation. There are no audio files yet, and real samples can be dropped in later. |
 | Bow gesture | Slide a finger left/right across a string. Faster means louder and brighter. Right is a **down bow** (⊓) and left is an **up bow** (V), and each one sounds slightly different. |
 | Pitch bend | Slide up/down along a string. Lower on the screen gives a higher note, and the pitch glides smoothly between notes. |
 | Vibrato | Wiggle the finger in small, quick left-right movements. |
@@ -42,9 +42,11 @@ npm run dev        # open the printed URL on your phone (same Wi-Fi) or desktop
 ## Test it
 
 ```bash
-npm test           # 54 unit tests: music theory, songs, gestures, game rules, orchestra, recording, progress
-npm run test:e2e   # browser tests on a Pixel 7-sized screen, including the full core loop; screenshots go to test-results/shots/
+npm test           # 55 unit tests: music theory, songs, gestures, game rules, orchestra, recording, progress
+npm run test:e2e   # browser tests on a Pixel 7-sized screen: the full core loop, plus a check that listens to the audio and hears the right melody
 ```
+
+For testers, opening the app with `?debug` exposes `window.magicViolin.engine` (the Web Audio engine) in the browser console.
 
 ## Deploy and Android APK
 

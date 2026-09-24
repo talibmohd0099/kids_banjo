@@ -78,7 +78,11 @@ export class AudioEngine {
 let engine: AudioEngine | null = null;
 
 export function getEngine(): AudioEngine {
-  if (!engine) engine = new AudioEngine();
+  if (!engine) {
+    engine = new AudioEngine();
+    // Testers: open the app with ?debug to inspect the audio from the browser console.
+    if (new URLSearchParams(location.search).has('debug')) (window as unknown as { magicViolin: unknown }).magicViolin = { engine };
+  }
   return engine;
 }
 

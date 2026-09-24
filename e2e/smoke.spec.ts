@@ -163,3 +163,50 @@ test('core loop: home, play, violin, song, guided playing, score, reward, garden
   await expect(page.locator('.song-card.locked')).toHaveCount(8);
   expect(errors).toEqual([]);
 });
+
+test('listen: the fairy really plays the melody (pitch check on the audio)', async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'mv.profile',
+      JSON.stringify({ version: 1, songs: { 'hot-cross-buns': { bestStars: 3, plays: 1, completions: 1, bestAccuracy: 1, lastPlayed: 0 } }, stats: { notesPlayed: 0, practiceMs: 0, songsCompleted: 1, streakDays: 1, lastPracticeDay: '' } }),
+    ),
+  );
+  await page.goto('/?debug');
+  await page.getByRole('button', { name: /SONGS/ }).click();
+  await page.getByRole('button', { name: 'Mary Had a Little Lamb' }).click();
+  await page.getByRole('button', { name: /Listen/ }).click();
+  // Listen to the audio output and name the pitch every 80 ms (autocorrelation).
+  const heard: string[] = await page.evaluate(async () => {
+    const { engine } = (window as unknown as { magicViolin: { engine: { ctx: AudioContext; input: AudioNode } } }).magicViolin;
+    const an = engine.ctx.createAnalyser();
+    an.fftSize = 4096;
+    engine.input.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    const sr = engine.ctx.sampleRate;
+    const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const out: string[] = [];
+    for (let k = 0; k < 70; k++) {
+      await new Promise((r) => setTimeout(r, 80));
+      an.getFloatTimeDomainData(buf);
+      let rms = 0;
+      for (const v of buf) rms += v * v;
+      if (Math.sqrt(rms / buf.length) < 0.01) continue;
+      let best = 0;
+      let bestLag = 0;
+      for (let lag = Math.floor(sr / 1000); lag < sr / 180; lag++) {
+        let c = 0;
+        for (let i = 0; i < 2048; i++) c += buf[i] * buf[i + lag];
+        if (c > best) {
+          best = c;
+          bestLag = lag;
+        }
+      }
+      const m = Math.round(69 + 12 * Math.log2(sr / bestLag / 440));
+      out.push(names[((m % 12) + 12) % 12]);
+    }
+    return out;
+  });
+  const melody = heard.filter((n, i) => n !== heard[i - 1]);
+  // "Ma-ry had a lit-tle lamb" = F# E D E F#
+  expect(melody.slice(0, 5)).toEqual(['F#', 'E', 'D', 'E', 'F#']);
+});

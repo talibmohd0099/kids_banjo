@@ -57,6 +57,10 @@ export function openSettings(parent: HTMLElement, onClose?: () => void): void {
         'skin',
         Object.values(SKINS).map((s) => [s.id, `${s.emoji} ${s.name}`]),
       ),
+      group('Songs', 'songPace', [
+        ['beat', '🎵 Keep the beat'],
+        ['wait', '🐢 Wait for me'],
+      ], (v) => (v === 'beat' ? 'The song keeps moving like real music, and a fairy plays the tune softly with you.' : 'The song stops on each note until you play it.')),
       group('Strings', 'openStrings', [
         [false, '🎶 All notes'],
         [true, '🎯 Open strings only'],

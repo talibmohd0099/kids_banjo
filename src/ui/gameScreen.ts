@@ -5,6 +5,7 @@
 
 import { getEngine } from '../audio/engine';
 import { Orchestra } from '../audio/orchestra';
+import { synthBank } from '../audio/instruments';
 import { ALL_LAYERS, NO_LAYERS, type Layers } from '../audio/arranger';
 import { FallingNotesGame, GRADE_WORDS } from '../game/fallingNotes';
 import { chordAtBeat, songHarmony } from '../music/harmony';
@@ -26,7 +27,7 @@ export function gameScreen(song: Song): Screen {
     screen.append(host);
     root.append(screen);
 
-    const game = new FallingNotesGame(song, settings.assist);
+    const game = new FallingNotesGame(song, settings.assist, { wait: settings.songPace === 'wait' });
     const harmony = songHarmony(song);
     const view = new ViolinView(host, { top: 118, bottom: 18, side: 14 });
     view.showHint = false;
@@ -60,7 +61,53 @@ export function gameScreen(song: Song): Screen {
     };
     view.onNoteOn = (midi, lane, replay) => handleNote({ midi, lane, source: replay ? 'replay' : 'touch' });
 
-    // ----- "Listen first": the fairy plays the opening of the song -----
+    // The fairy plays a song note on the violin (shown as a 🧚 finger). Used by
+    // "Listen" and by the soft guide melody that plays along during the song.
+    const fairy = (key: string, i: number, intensity: number, bowChanged: boolean, now: number) => {
+      const gn = game.notes[i];
+      const a = view.board.area;
+      view.apply(key, {
+        lane: gn.lane,
+        midi: gn.midi,
+        intensity,
+        vibrato: gn.beats >= 2 ? 0.5 : 0,
+        direction: i % 2 === 0 ? 'down' : 'up',
+        bowChanged,
+        x: (view.board.stringX(gn.lane) - a.x) / a.w + Math.sin(now / 180) * 0.04,
+        y: (view.board.yForPosition(gn.position) - a.y) / a.h,
+      });
+    };
+
+    // ----- guide melody: the tune always sounds, softly, on the beat -----
+    let guideIdx = -1;
+    const guideFrame = (now: number) => {
+      const t = game.songTime;
+      const i = game.notes.findIndex((n) => t >= n.time && t < n.time + (n.beats - Math.min(0.25, n.beats * 0.2)) * game.secPerBeat);
+      if (i < 0 || done) {
+        if (guideIdx !== -1) view.apply('rguide', null);
+        guideIdx = -1;
+        return;
+      }
+      // Soft while the child still has to play it; almost silent once they did.
+      const played = game.notes[i].state === 'hit';
+      fairy('rguide', i, played ? 0.1 : settings.assist === 'free' ? 0.2 : 0.3, i !== guideIdx, now);
+      guideIdx = i;
+    };
+
+    // ----- count-in: "3, 2, 1" with a soft click so the child feels the beat -----
+    let lastCountBeat = Infinity;
+    const countFrame = () => {
+      if (game.songTime >= 0) return;
+      const beatsLeft = Math.ceil(-game.songTime / game.secPerBeat);
+      if (beatsLeft !== lastCountBeat) {
+        lastCountBeat = beatsLeft;
+        const e = getEngine();
+        synthBank.hat(e, e.input, e.now, 1);
+        if (beatsLeft <= 3) synthBank.kick(e, e.input, e.now, 0.35);
+      }
+    };
+
+    // ----- "Listen first": the fairy plays the song -----
     const DEMO_NOTES = Math.min(song.notes.length, 32);
     let demoStart: number | null = null;
     let demoIdx = -1;
@@ -74,24 +121,12 @@ export function gameScreen(song: Song): Screen {
       const t = ((now - demoStart) / 1000) / game.secPerBeat; // in beats
       const i = song.notes.findIndex((n) => t >= n.beat && t < n.beat + n.beats);
       const n = song.notes[i];
-      if (i < 0 || i >= DEMO_NOTES || t > n.beat + n.beats * 0.88) {
+      if (i < 0 || i >= DEMO_NOTES || t > n.beat + n.beats - Math.min(0.25, n.beats * 0.2)) {
         view.apply('rdemo', null);
         if (t > song.notes[DEMO_NOTES - 1].beat + song.notes[DEMO_NOTES - 1].beats) stopDemo();
         return;
       }
-      const gn = game.notes[i];
-      const a = view.board.area;
-      const wobble = Math.sin(now / 180) * 0.04;
-      view.apply('rdemo', {
-        lane: gn.lane,
-        midi: gn.midi,
-        intensity: 0.7,
-        vibrato: n.beats >= 2 ? 0.5 : 0,
-        direction: i % 2 === 0 ? 'down' : 'up',
-        bowChanged: i !== demoIdx,
-        x: (view.board.stringX(gn.lane) - a.x) / a.w + wobble,
-        y: (view.board.yForPosition(gn.position) - a.y) / a.h,
-      });
+      fairy('rdemo', i, 0.7, i !== demoIdx, now);
       demoIdx = i;
     };
     view.drawOverlay = (g, board) => drawNotes(g, board, game);
@@ -103,6 +138,8 @@ export function gameScreen(song: Song): Screen {
       demoFrame(now);
       if (!running) return;
       game.update(dt);
+      countFrame();
+      guideFrame(now);
       // Exposed for automated tests (and handy for debugging): which string is due.
       const due = game.nextPending();
       screen.dataset.nextLane = due && due.time - game.songTime < 0.3 ? String(due.lane) : '';
@@ -160,10 +197,11 @@ export function gameScreen(song: Song): Screen {
       }, 1200);
     };
 
+    const when = settings.songPace === 'wait' ? 'The song waits for you.' : 'The fairy plays along softly, so keep the beat with her!';
     const howTo =
       settings.assist === 'beginner'
-        ? 'When a note reaches the glowing line, touch its string and slide! The song waits for you.'
-        : 'Put your finger on the glowing ring and bow when the note reaches the line.';
+        ? `When a note reaches the glowing line, touch its string. ${when}`
+        : `Put your finger on the glowing ring and bow when the note reaches the line. ${when}`;
     const overlay = h(
       'div',
       { class: 'overlay' },
@@ -238,8 +276,18 @@ function drawNotes(g: CanvasRenderingContext2D, board: Fingerboard, game: Fallin
     g.arc(board.stringX(next.lane), board.yForPosition(next.position), 16 * pulse, 0, Math.PI * 2);
     g.stroke();
   }
-  // Waiting for the child: make the right string glow.
-  if (next && game.waiting) {
+  // The next note is close (or the song is waiting): light up its string and show where to touch.
+  const soon = next && (game.waiting || next.time - game.songTime < 0.9);
+  if (next && soon) {
+    // Landing spot on the line: a ring that closes in as the note arrives.
+    const ahead = Math.max(0, next.time - game.songTime);
+    g.strokeStyle = STRINGS[next.lane].color;
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(board.stringX(next.lane), lineY, 24 + ahead * 40, 0, Math.PI * 2);
+    g.stroke();
+  }
+  if (next && soon && game.level === 'beginner') {
     const x = board.stringX(next.lane);
     const lw = board.laneWidth();
     g.fillStyle = STRINGS[next.lane].color + '40';
@@ -251,14 +299,26 @@ function drawNotes(g: CanvasRenderingContext2D, board: Fingerboard, game: Fallin
   }
 
   const labelStyle = settings.labels === 'off' ? null : settings.labels;
+  const pxPerSec = (lineY - topY) / game.travel;
+  // Keep falling notes and their tails inside the fingerboard.
+  g.save();
+  g.beginPath();
+  g.rect(a.x, a.y - 30, a.w, a.h + 30);
+  g.clip();
   for (const n of game.notes) {
     if (n.state === 'hit') continue;
     const ahead = n.time - game.songTime;
     if (ahead > game.travel || ahead < -0.6) continue;
-    const y = lineY - (ahead / game.travel) * (lineY - topY);
+    const y = lineY - ahead * pxPerSec;
     const x = board.stringX(n.lane);
     const r = 19 + Math.min(2, n.beats) * 3;
     g.globalAlpha = n.state === 'missed' ? 0.3 : 1;
+    // A tail shows how long to hold the note.
+    const tail = Math.max(0, n.beats * game.secPerBeat * pxPerSec - r);
+    if (tail > 4) {
+      g.fillStyle = STRINGS[n.lane].color + '66';
+      g.fillRect(x - 7, y - r - tail, 14, tail);
+    }
     const grad = g.createRadialGradient(x - 5, y - 5, 2, x, y, r);
     grad.addColorStop(0, '#fff');
     grad.addColorStop(1, STRINGS[n.lane].color);
@@ -274,4 +334,20 @@ function drawNotes(g: CanvasRenderingContext2D, board: Fingerboard, game: Fallin
     g.textBaseline = 'alphabetic';
   }
   g.globalAlpha = 1;
+  g.restore();
+
+  // Count-in before the first note.
+  if (game.songTime < 0) {
+    const beatsLeft = Math.ceil(-game.songTime / game.secPerBeat);
+    const word = beatsLeft > 3 ? 'Ready…' : String(beatsLeft);
+    g.font = `900 ${beatsLeft > 3 ? 44 : 84}px system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 8;
+    g.strokeStyle = '#0008';
+    g.strokeText(word, a.x + a.w / 2, a.y + a.h * 0.4);
+    g.fillStyle = '#fff';
+    g.fillText(word, a.x + a.w / 2, a.y + a.h * 0.4);
+    g.textBaseline = 'alphabetic';
+  }
 }

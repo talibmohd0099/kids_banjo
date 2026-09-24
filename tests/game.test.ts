@@ -26,6 +26,14 @@ describe('FallingNotesGame', () => {
     expect(hit?.grade).toBe('perfect');
   });
 
+  it('"keep the beat": a beginner song keeps moving and still helps with the pitch', () => {
+    const game = new FallingNotesGame(buns, 'beginner', { wait: false });
+    game.update(game.travel + 2);
+    expect(game.waiting).toBe(false);
+    expect(game.songTime).toBeCloseTo(2);
+    expect(game.notes[0].state).toBe('missed');
+  });
+
   it('beginner mode assists the pitch of the upcoming note', () => {
     const game = new FallingNotesGame(buns, 'beginner');
     game.update(game.travel);
