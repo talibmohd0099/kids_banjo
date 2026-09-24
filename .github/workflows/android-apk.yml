@@ -1,0 +1,71 @@
+# Builds an installable Android APK on every push (and on demand from the Actions tab).
+# Download it from the "Magic Violin APK (latest)" release, or from the run's artifacts.
+name: Build Android APK
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to update the "apk-latest" release
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Copy web app into the Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk magic-violin.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magic-violin-apk
+          path: magic-violin.apk
+
+      # A fixed release page makes the APK easy to download straight onto a phone.
+      - name: Publish to the "apk-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk-latest magic-violin.apk \
+            --target "${GITHUB_SHA}" \
+            --prerelease \
+            --title "Magic Violin APK (latest)" \
+            --notes "Debug build from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. On your Android phone: download magic-violin.apk, open it, and allow installing from this source."

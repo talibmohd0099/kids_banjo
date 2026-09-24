@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Magic Violin</string>
+    <string name="title_activity_main">Magic Violin</string>
+    <string name="package_name">com.talib.magicviolin</string>
+    <string name="custom_url_scheme">com.talib.magicviolin</string>
+</resources>

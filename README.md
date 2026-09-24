@@ -34,6 +34,17 @@ npm test           # 46 unit tests: music theory, songs, gestures, game rules, o
 npm run test:e2e   # browser tests on a Pixel 7-sized screen; screenshots go to test-results/shots/
 ```
 
+## Deploy and Android APK
+
+Two GitHub Actions workflows run on every push:
+
+- **Build Android APK** (`.github/workflows/android-apk.yml`) runs the tests, builds the app, wraps it with Capacitor and builds `magic-violin.apk`. To get it, open the repo's **Releases** page, find **Magic Violin APK (latest)**, and download the APK on an Android phone. The APK is also attached to each workflow run.
+- **Deploy website** (`.github/workflows/deploy-web.yml`) publishes the web version to GitHub Pages. Before it can run, a repo admin has to do a one-time setup: **Settings → Pages → Source: GitHub Actions**.
+
+To build the APK locally (needs Android Studio / Android SDK and JDK 21): `npm run android:apk`. The APK ends up in `android/app/build/outputs/apk/debug/`.
+
+The APK is a *debug* build, which is fine for testing on your own phones. Publishing on the Play Store needs a signed release build (AAB), which is the next step.
+
 ## Why this stack
 
 - **TypeScript + Web Audio API + Canvas, no framework.** A violin has to respond instantly to your finger. Web Audio creates the sound in real time (pitch bend, vibrato and bow pressure are all live), and Canvas draws the strings at 60 fps.
