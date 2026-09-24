@@ -1,0 +1,22 @@
+{
+  "name": "kids-violin",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Magic Violin: a touch violin for kids aged 4-12",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56",
+    "@types/node": "^22.20.4",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}
