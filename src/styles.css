@@ -555,3 +555,279 @@ button {
   letter-spacing: 0;
   opacity: 0.7;
 }
+
+/* ---------- play hub ---------- */
+
+.hub {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hub-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 5px 0 #0003;
+}
+
+.hub-card .icon {
+  font-size: 48px;
+}
+
+.hub-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hub-text b {
+  font-size: 22px;
+}
+
+.hub-text small {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.pill-btn.big {
+  min-height: 60px;
+  font-size: 20px;
+  padding: 0 28px;
+}
+
+.pill-btn.nudge {
+  position: absolute;
+  left: 50%;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 6;
+  white-space: nowrap;
+  animation: pop-in 0.3s ease-out;
+}
+
+/* ---------- rewards ---------- */
+
+.rewards {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  color: #fff;
+}
+
+.rewards h2 {
+  margin: 0;
+  font-size: 34px;
+  text-shadow: 0 3px 0 #0004;
+}
+
+.reward-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 38%, #ffd16666, transparent 55%);
+  pointer-events: none;
+}
+
+.plant-grow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 64px;
+  min-height: 110px;
+}
+
+.plant-grow .from {
+  opacity: 0.55;
+  font-size: 44px;
+}
+
+.plant-grow .arrow {
+  font-size: 28px;
+}
+
+.plant-grow .to {
+  font-size: 96px;
+  animation: grow 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) both 0.2s;
+}
+
+@keyframes grow {
+  from {
+    transform: scale(0.2) translateY(30px);
+  }
+}
+
+.reward-line {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.unlock-card {
+  background: #ffffffe6;
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 10px 16px;
+  font-weight: 800;
+}
+
+.tree-line {
+  margin: 0;
+  opacity: 0.85;
+  font-size: 14px;
+}
+
+.reward-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ---------- music garden ---------- */
+
+.garden {
+  gap: 14px;
+  background: linear-gradient(#8fd3ff 0%, #bdf0c4 45%, #7cc47f 100%);
+}
+
+.garden .list-head h2 {
+  color: #1d5b2a;
+  text-shadow: 0 2px 0 #fff8;
+}
+
+.tree-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #ffffffd9;
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.tree {
+  font-size: 64px;
+  line-height: 1;
+}
+
+.tree.stage-5 {
+  animation: sway 3s ease-in-out infinite;
+}
+
+.tree-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tree-name {
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.tree-bar {
+  height: 12px;
+  border-radius: 12px;
+  background: #0001;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+
+.tree-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #8ac926, #1d9a4a);
+}
+
+.garden-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.garden-stats > div {
+  background: #ffffffb3;
+  border-radius: 14px;
+  padding: 8px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.garden-stats b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.garden-stats span {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.plot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px 8px;
+  border-radius: 18px;
+  background: linear-gradient(#ffffff55 0 58%, #8b5a2b 58% 100%);
+  color: var(--ink);
+  min-height: 118px;
+  box-shadow: 0 4px 0 #0002;
+}
+
+.plot .plant {
+  font-size: 44px;
+  line-height: 1.1;
+}
+
+.plot.grown .plant {
+  animation: sway 4s ease-in-out infinite;
+}
+
+.plot.fresh .plant {
+  animation: grow 1s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.plot-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+  line-height: 1.15;
+  margin-top: 6px;
+}
+
+.plot-stars {
+  font-size: 10px;
+  color: #fff;
+  min-height: 12px;
+}
+
+.plot.locked {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}

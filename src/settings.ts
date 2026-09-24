@@ -46,10 +46,3 @@ export const settings: Settings = load('mv.settings', DEFAULTS);
 export function saveSettings(): void {
   save('mv.settings', settings);
 }
-
-/** Best stars (0-3) per song id. A song unlocks when the one before it has 1+ star. */
-export const progress: Record<string, number> = loadRaw('mv.progress', {});
-
-export function saveProgress(): void {
-  save('mv.progress', progress);
-}

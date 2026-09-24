@@ -5,7 +5,7 @@
 import { CHORDS } from '../music/theory';
 import type { AudioEngine } from './engine';
 import { Arranger, type Layers, NO_LAYERS } from './arranger';
-import * as inst from './instruments';
+import { synthBank, type InstrumentBank } from './instruments';
 
 export interface OrchestraOptions {
   tempo: number;
@@ -19,6 +19,8 @@ export interface OrchestraOptions {
   chordAt?: (beat: number) => number;
   /** Optional fixed layers (song games decide who plays based on progress). */
   layersOverride?: () => Layers | null;
+  /** Instrument sounds; defaults to the built-in synthesized band. */
+  bank?: InstrumentBank;
 }
 
 const LOOKAHEAD = 0.12; // seconds
@@ -32,8 +34,10 @@ export class Orchestra {
   private nextStep = 0; // index of the next eighth-note to schedule
   private current: Layers = { ...NO_LAYERS };
   onLayersChange: ((l: Layers) => void) | null = null;
+  private bank: InstrumentBank;
 
   constructor(private engine: AudioEngine, private opts: OrchestraOptions) {
+    this.bank = opts.bank ?? synthBank;
     this.out = engine.ctx.createGain();
     this.out.gain.value = 0.8;
     this.out.connect(engine.input);
@@ -64,13 +68,13 @@ export class Orchestra {
     const e = this.engine;
     const t = e.now + 0.05;
     this.arranger.climax(e.now, 4);
-    inst.cymbal(e, this.out, t, 0.8);
-    inst.kick(e, this.out, t, 1);
+    this.bank.cymbal(e, this.out, t, 0.8);
+    this.bank.kick(e, this.out, t, 1);
     const chord = CHORDS[0];
-    for (const m of voice(chord.pcs)) inst.piano(e, this.out, m, t, 0.9, 3);
-    inst.bass(e, this.out, chord.rootMidi - 12, t, 0.9, 2.5);
-    inst.flute(e, this.out, 74, t, 0.7, 2.5);
-    inst.applause(e, this.out, t + 0.6, 3.5);
+    for (const m of voice(chord.pcs)) this.bank.piano(e, this.out, m, t, 0.9, 3);
+    this.bank.bass(e, this.out, chord.rootMidi - 12, t, 0.9, 2.5);
+    this.bank.flute(e, this.out, 74, t, 0.7, 2.5);
+    this.bank.applause(e, this.out, t + 0.6, 3.5);
   }
 
   private secPerBeat(): number {
@@ -124,30 +128,30 @@ export class Orchestra {
 
     if (layers.piano && onBeat) {
       if (beatInBar % halfBar === 0) {
-        for (const m of notes) inst.piano(e, this.out, m, t, vel * 0.8, 1.8);
+        for (const m of notes) this.bank.piano(e, this.out, m, t, vel * 0.8, 1.8);
       } else if (!layers.drums) {
         // Gentle broken chord between the big chords.
-        inst.piano(e, this.out, notes[beatInBar % notes.length] + 12, t, vel * 0.45, 1.2);
+        this.bank.piano(e, this.out, notes[beatInBar % notes.length] + 12, t, vel * 0.45, 1.2);
       }
     }
     if (layers.bass && onBeat && beatInBar % halfBar === 0) {
       const fifth = beatInBar === 0 ? 0 : 7;
-      inst.bass(e, this.out, chord.rootMidi + fifth - 12, t, vel, this.secPerBeat() * halfBar * 0.9);
+      this.bank.bass(e, this.out, chord.rootMidi + fifth - 12, t, vel, this.secPerBeat() * halfBar * 0.9);
     }
     if (layers.drums) {
-      if (onBeat && beatInBar === 0) inst.kick(e, this.out, t, vel);
+      if (onBeat && beatInBar === 0) this.bank.kick(e, this.out, t, vel);
       if (this.opts.beatsPerBar === 4) {
-        if (onBeat && beatInBar === 2) inst.kick(e, this.out, t, vel * 0.8);
-        if (onBeat && (beatInBar === 1 || beatInBar === 3)) inst.snare(e, this.out, t, vel);
+        if (onBeat && beatInBar === 2) this.bank.kick(e, this.out, t, vel * 0.8);
+        if (onBeat && (beatInBar === 1 || beatInBar === 3)) this.bank.snare(e, this.out, t, vel);
       } else if (onBeat && beatInBar > 0) {
-        inst.snare(e, this.out, t, vel * 0.6);
+        this.bank.snare(e, this.out, t, vel * 0.6);
       }
-      inst.hat(e, this.out, t, onBeat ? vel * 0.8 : vel * 0.5);
+      this.bank.hat(e, this.out, t, onBeat ? vel * 0.8 : vel * 0.5);
     }
     if (layers.flute && s === 0) {
       // The chord's third, up high: a sweet line floating over the violin.
       const third = notes[1] + 12;
-      inst.flute(e, this.out, third, t, vel * 0.8, this.secPerBeat() * this.opts.beatsPerBar * 0.95);
+      this.bank.flute(e, this.out, third, t, vel * 0.8, this.secPerBeat() * this.opts.beatsPerBar * 0.95);
     }
   }
 

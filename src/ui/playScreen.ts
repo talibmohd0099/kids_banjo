@@ -10,7 +10,7 @@ import { ViolinView } from '../violin/violinView';
 import { h, toast, type Screen } from './dom';
 import { musiciansRow } from './musicians';
 import { openSettings } from './settingsSheet';
-import { goHome, goMyMusic } from './router';
+import { goHome, goMyMusic, goSongs } from './router';
 
 export function playScreen(withOrchestra: boolean): Screen {
   return (root) => {
@@ -33,8 +33,12 @@ export function playScreen(withOrchestra: boolean): Screen {
       orchestra.start();
     };
 
+    // After some free exploring, invite the child into the guided songs.
+    let freeNotes = 0;
+    const songNudge = h('button', { class: 'pill-btn nudge', hidden: true, onclick: () => goSongs() }, '🎵 Ready to play a song?');
     view.onNoteOn = (midi, _lane, replay) => {
       if (replay) return;
+      if (++freeNotes === 16) songNudge.hidden = false;
       ensureOrchestra();
       orchestra?.arranger.noteOn(midi, getEngine().now);
     };
@@ -114,6 +118,7 @@ export function playScreen(withOrchestra: boolean): Screen {
         h('button', { class: 'round-btn', 'aria-label': 'Settings', onclick: () => openSettings(screen) }, '⚙️'),
       ),
       band.el,
+      songNudge,
     );
 
     return () => {

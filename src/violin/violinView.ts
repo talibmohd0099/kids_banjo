@@ -5,7 +5,8 @@
 // the same apply() call, so a replay sounds and looks exactly like the live performance.
 
 import { getEngine } from '../audio/engine';
-import { ViolinVoice } from '../audio/violinVoice';
+import { violinSound, type SoundingVoice } from '../audio/violinSound';
+import { practiceFrame, practiceNote } from '../state/practice';
 import { GestureTracker, type BowDirection } from '../input/gesture';
 import { assistPitch, inKey, MAX_POSITION, noteLabel, STRINGS } from '../music/theory';
 import { settings } from '../settings';
@@ -25,7 +26,7 @@ export interface PlayState {
 }
 
 interface LiveVoice {
-  voice: ViolinVoice;
+  voice: SoundingVoice;
   state: PlayState;
   lastNoteMidi: number;
   replay: boolean;
@@ -142,7 +143,7 @@ export class ViolinView {
     const controls = { midi: state.midi, intensity: state.intensity, vibrato: state.vibrato, direction: state.direction, bowChanged: state.bowChanged };
     if (!live) {
       const engine = getEngine();
-      this.voices.set(key, { voice: new ViolinVoice(engine, controls), state, lastNoteMidi: state.midi, replay });
+      this.voices.set(key, { voice: violinSound().createVoice(engine, controls), state, lastNoteMidi: state.midi, replay });
       this.noteOn(state, replay);
     } else {
       live.voice.set(controls);
@@ -156,6 +157,7 @@ export class ViolinView {
   }
 
   private noteOn(state: PlayState, replay: boolean): void {
+    if (!replay) practiceNote();
     this.onNoteOn?.(Math.round(state.midi), state.lane, replay);
     const p = this.fingerPx(state);
     this.burst(p.x, p.y, 10, state.lane);
@@ -275,6 +277,9 @@ export class ViolinView {
     let max = 0;
     for (const v of this.voices.values()) max = Math.max(max, v.state.intensity);
     this.onFrame?.(max);
+    let live = false;
+    for (const v of this.voices.values()) live = live || (!v.replay && v.state.intensity > 0.05);
+    practiceFrame(now, live);
     for (const v of this.voices.values()) {
       if (v.state.intensity > 0.3 && Math.random() < v.state.intensity * 0.35) {
         const p = this.fingerPx(v.state);

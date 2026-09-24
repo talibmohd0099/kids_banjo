@@ -161,3 +161,11 @@ export function applause(e: AudioEngine, dest: AudioNode, t: number, seconds = 3
     n.connect(envGain(ctx, bp, ct, 0.05 + Math.random() * 0.06, 0.001, 0.025));
   }
 }
+
+/**
+ * The band's instruments as one swappable set. Today they are all synthesized;
+ * a sample-based or MIDI (SoundFont) bank with the same functions can replace it
+ * via the Orchestra's `bank` option without changing any arrangement logic.
+ */
+export const synthBank = { piano, bass, flute, kick, snare, hat, cymbal, applause };
+export type InstrumentBank = typeof synthBank;

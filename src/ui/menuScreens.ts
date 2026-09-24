@@ -1,9 +1,10 @@
 import { SONGS } from '../music/songs';
 import { deleteRecording, listRecordings, Replayer, type Recording } from '../record/recording';
-import { progress, settings, type SkinId } from '../settings';
+import { settings, type SkinId } from '../settings';
+import { isUnlocked, profile, songRecord } from '../state/profile';
 import { ViolinView } from '../violin/violinView';
 import { h, toast, type Screen } from './dom';
-import { goGame, goHome, goMyMusic, goPlay, goReplay, goSongs } from './router';
+import { goGame, goGarden, goHome, goMyMusic, goPlay, goPlayHub, goReplay, goSongs } from './router';
 import { getEngine } from '../audio/engine';
 import { openSettings } from './settingsSheet';
 import { SKINS } from '../violin/skins';
@@ -23,12 +24,12 @@ export const homeScreen: Screen = (root) => {
     h(
       'div',
       { class: 'menu' },
-      menuBtn('✨', 'MAGIC ORCHESTRA', () => goPlay(true), 'wide'),
-      menuBtn('🎻', 'FREE PLAY', () => goPlay(false)),
+      menuBtn('▶️', 'PLAY', () => goPlayHub(), 'wide'),
       menuBtn('🎵', 'SONGS', () => goSongs()),
+      menuBtn('✨', 'MAGIC ORCHESTRA', () => goPlay(true)),
+      menuBtn('🌷', 'MUSIC GARDEN', () => goGarden()),
       menuBtn('💾', 'MY MUSIC', () => goMyMusic()),
       menuBtn('⚙️', 'SETTINGS', () => openSettings(screen)),
-      soon('🌱', 'Music Garden'),
       soon('👪', 'Parent Area'),
     ),
   );
@@ -37,13 +38,13 @@ export const homeScreen: Screen = (root) => {
 };
 
 function unlocked(i: number): boolean {
-  return i === 0 || (progress[SONGS[i - 1].id] ?? 0) > 0;
+  return isUnlocked(profile, SONGS.map((s) => s.id), i);
 }
 
 export const songsScreen: Screen = (root) => {
   const cards = SONGS.map((song, i) => {
     const open = unlocked(i);
-    const stars = progress[song.id] ?? 0;
+    const stars = songRecord(profile, song.id).bestStars;
     const card = h(
       'button',
       { class: `song-card${open ? '' : ' locked'}${i === SONGS.length - 1 ? ' boss' : ''}`, 'aria-label': `${song.title}${open ? '' : ', locked'}` },

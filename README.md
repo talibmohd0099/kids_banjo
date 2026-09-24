@@ -2,6 +2,18 @@
 
 A touch violin for kids aged 4 to 12. It should feel like a real instrument while staying very simple to play.
 
+## The core loop
+
+**Home → Play → Violin → touch & slide notes → Song → guided playing → Score → Reward → Music Garden**
+
+Every step is fully interactive. Progress is saved in the browser (localStorage), so it's still there after you close the app:
+
+- **Play hub** offers Song Journey, Free Violin and Magic Orchestra. After some free play, a "Ready to play a song?" button invites the child into the songs.
+- **Guided playing**: 👂 *Listen* lets a fairy play the tune first. In Beginner mode the song waits for each note, and a pointing hand shows which string to play.
+- **Score** shows stars and a kind message (never "FAILED").
+- **Reward** plants the song's flower, unlocks the next song and grows the Magic Tree.
+- **Music Garden** has one plant per song that grows with better stars, the Magic Tree (100 songs to the giant tree), and stats for plants, notes played, practice minutes and the day streak. Tap a plant to play its song again.
+
 ## What's in this first version (MVP)
 
 | Feature | How it works |
@@ -30,8 +42,8 @@ npm run dev        # open the printed URL on your phone (same Wi-Fi) or desktop
 ## Test it
 
 ```bash
-npm test           # 46 unit tests: music theory, songs, gestures, game rules, orchestra, recording
-npm run test:e2e   # browser tests on a Pixel 7-sized screen; screenshots go to test-results/shots/
+npm test           # 54 unit tests: music theory, songs, gestures, game rules, orchestra, recording, progress
+npm run test:e2e   # browser tests on a Pixel 7-sized screen, including the full core loop; screenshots go to test-results/shots/
 ```
 
 ## Deploy and Android APK
@@ -51,6 +63,15 @@ The APK is a *debug* build, which is fine for testing on your own phones. Publis
 - **Runs today in any phone browser** and can be added to the home screen (PWA).
 - **Becoming an Android/iOS app** is the next step with [Capacitor](https://capacitorjs.com/), which wraps this same code in a native app for the Play Store and App Store.
 
+## Ready for real instruments later
+
+The code is split so better sound and input can be added without rewriting the app:
+
+- **Real violin samples**: put recordings in `public/samples/violin/` with a `manifest.json` (see `src/audio/violinSound.ts`). The app then uses them automatically instead of the synthesized violin, keeping pitch bend, vibrato and bow intensity.
+- **Accompaniment**: the Magic Orchestra takes an `InstrumentBank` (`src/audio/instruments.ts`). A sample or SoundFont (MIDI) bank can replace the synthesized band.
+- **Pitch detection / MIDI**: the games score `NoteEvent`s (`src/input/noteInput.ts`), not touches. A microphone pitch detector (a real violin) or a MIDI device can feed the same events.
+- **Saved state**: `src/state/profile.ts` holds all progress rules as pure functions, so the same data could later sync to a server.
+
 ## Code map
 
 ```
@@ -60,6 +81,7 @@ src/audio/     violinVoice (the violin sound), orchestra + arranger (the band), 
 src/violin/    fingerboard layout, the canvas violin, skins
 src/game/      Falling Notes rules
 src/record/    record / replay / My Music storage
+src/state/     saved profile: song results, garden, practice stats
 src/ui/        screens
 ```
 

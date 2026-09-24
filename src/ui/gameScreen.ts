@@ -1,6 +1,7 @@
-// Falling Notes: play a song by catching the notes as they reach the glowing line.
-// The Magic Orchestra follows the song and grows as the child progresses, and a
-// finished song ends in a concert finale with applause.
+// Guided song playing (Falling Notes): play a song by catching the notes as they reach
+// the glowing line. "Listen" lets a fairy play the tune first. The Magic Orchestra
+// follows the song and grows as the child progresses; a finished song ends in a concert
+// finale, then the score, then the reward that grows the child's Music Garden.
 
 import { getEngine } from '../audio/engine';
 import { Orchestra } from '../audio/orchestra';
@@ -9,12 +10,14 @@ import { FallingNotesGame, GRADE_WORDS } from '../game/fallingNotes';
 import { chordAtBeat, songHarmony } from '../music/harmony';
 import { SONGS, type Song } from '../music/songs';
 import { noteLabel, STRINGS } from '../music/theory';
-import { progress, saveProgress, settings } from '../settings';
+import type { NoteEvent } from '../input/noteInput';
+import { profile, recordResult, recordStart, saveProfile } from '../state/profile';
+import { settings } from '../settings';
 import type { Fingerboard } from '../violin/fingerboard';
 import { ViolinView } from '../violin/violinView';
 import { floatWord, h, type Screen } from './dom';
 import { musiciansRow } from './musicians';
-import { goGame, goSongs } from './router';
+import { goGame, goRewards, goSongs } from './router';
 
 export function gameScreen(song: Song): Screen {
   return (root) => {
@@ -42,15 +45,52 @@ export function gameScreen(song: Song): Screen {
       return { piano: true, bass: game.hits() >= 4, drums: p > 0.35 && !game.waiting, flute: p > 0.65 };
     };
 
-    view.pitchOverride = (lane) => game.assistedPitch(lane);
-    view.onNoteOn = (midi, lane, replay) => {
-      if (!running || replay) return;
-      const note = game.play(lane, midi);
+    view.pitchOverride = (lane) => (running ? game.assistedPitch(lane) : null);
+    // Any note source (touch today; microphone or MIDI later) scores through here.
+    const handleNote = (e: NoteEvent) => {
+      if (!running || e.source === 'replay') return;
+      const note = game.play(e.lane, e.midi);
       if (!note) return;
       const words = GRADE_WORDS[note.grade!];
-      const x = view.board.stringX(lane);
+      const x = view.board.stringX(e.lane);
       floatWord(screen, words[Math.floor(Math.random() * words.length)], x, hitY(view.board) - 70);
       if (game.streak > 0 && game.streak % 8 === 0) floatWord(screen, `🔥 ${game.streak} in a row!`, view.board.area.x + view.board.area.w / 2, hitY(view.board) - 120);
+    };
+    view.onNoteOn = (midi, lane, replay) => handleNote({ midi, lane, source: replay ? 'replay' : 'touch' });
+
+    // ----- "Listen first": the fairy plays the opening of the song -----
+    const DEMO_NOTES = Math.min(song.notes.length, 12);
+    let demoStart: number | null = null;
+    let demoIdx = -1;
+    const stopDemo = () => {
+      demoStart = null;
+      demoIdx = -1;
+      view.apply('rdemo', null);
+    };
+    const demoFrame = (now: number) => {
+      if (demoStart === null) return;
+      const t = ((now - demoStart) / 1000) / game.secPerBeat; // in beats
+      const i = song.notes.findIndex((n) => t >= n.beat && t < n.beat + n.beats);
+      const n = song.notes[i];
+      if (i < 0 || i >= DEMO_NOTES || t > n.beat + n.beats * 0.88) {
+        view.apply('rdemo', null);
+        if (t > song.notes[DEMO_NOTES - 1].beat + song.notes[DEMO_NOTES - 1].beats) stopDemo();
+        return;
+      }
+      const gn = game.notes[i];
+      const a = view.board.area;
+      const wobble = Math.sin(now / 180) * 0.04;
+      view.apply('rdemo', {
+        lane: gn.lane,
+        midi: gn.midi,
+        intensity: 0.7,
+        vibrato: n.beats >= 2 ? 0.5 : 0,
+        direction: i % 2 === 0 ? 'down' : 'up',
+        bowChanged: i !== demoIdx,
+        x: (view.board.stringX(gn.lane) - a.x) / a.w + wobble,
+        y: (view.board.yForPosition(gn.position) - a.y) / a.h,
+      });
+      demoIdx = i;
     };
     view.drawOverlay = (g, board) => drawNotes(g, board, game);
 
@@ -58,14 +98,21 @@ export function gameScreen(song: Song): Screen {
       raf = requestAnimationFrame(loop);
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
+      demoFrame(now);
       if (!running) return;
       game.update(dt);
+      // Exposed for automated tests (and handy for debugging): which string is due.
+      const due = game.nextPending();
+      screen.dataset.nextLane = due && due.time - game.songTime < 0.3 ? String(due.lane) : '';
       bar.style.width = `${Math.round(game.progress() * 100)}%`;
       if (game.finished && !done) finish();
     };
 
     const start = () => {
+      stopDemo();
       overlay.remove();
+      recordStart(profile, song.id, Date.now());
+      saveProfile();
       const engine = getEngine();
       void engine.resume();
       orchestra = new Orchestra(engine, {
@@ -85,12 +132,10 @@ export function gameScreen(song: Song): Screen {
       done = true;
       running = false;
       const result = game.result();
-      const idx = SONGS.indexOf(song);
-      progress[song.id] = Math.max(progress[song.id] ?? 0, result.stars);
-      saveProgress();
+      const reward = recordResult(profile, SONGS.map((x) => x.id), song.id, result, Date.now());
+      saveProfile(true);
       orchestra?.finale();
       band.update(ALL_LAYERS, true);
-      const next = SONGS[idx + 1];
       setTimeout(() => {
         screen.append(
           h(
@@ -104,9 +149,9 @@ export function gameScreen(song: Song): Screen {
               h('div', { class: 'big-stars', 'aria-label': `${result.stars} stars` }, '⭐'.repeat(result.stars) + '☆'.repeat(3 - result.stars)),
               h('p', {}, result.message),
               h('p', { class: 'hint' }, `You played ${result.hits} of ${result.total} notes.`),
-              h('button', { class: 'pill-btn secondary', onclick: () => goGame(song) }, '🔁 Again'),
-              next ? h('button', { class: 'pill-btn', onclick: () => goGame(next) }, `Next: ${next.emoji} ${next.title}`) : null,
-              h('button', { class: 'pill-btn secondary', onclick: () => goSongs() }, '🎵 Songs'),
+              h('button', { class: 'pill-btn big', onclick: () => goRewards(reward) }, '🎁 Collect reward'),
+              h('br'),
+              h('button', { class: 'pill-btn secondary', onclick: () => goGame(song) }, '🔁 Play again'),
             ),
           ),
         );
@@ -126,6 +171,11 @@ export function gameScreen(song: Song): Screen {
         h('div', { style: { fontSize: '56px' } }, song.emoji),
         h('h2', {}, song.title),
         h('p', {}, howTo),
+        h('button', { class: 'pill-btn secondary', onclick: () => {
+          void getEngine().resume();
+          demoStart = performance.now();
+          demoIdx = -1;
+        } }, '👂 Listen'),
         h('button', { class: 'pill-btn', onclick: start }, '▶ Start'),
       ),
     );
@@ -192,6 +242,10 @@ function drawNotes(g: CanvasRenderingContext2D, board: Fingerboard, game: Fallin
     const lw = board.laneWidth();
     g.fillStyle = STRINGS[next.lane].color + '40';
     g.fillRect(x - lw / 2 + 4, a.y, lw - 8, a.h);
+    // A little hand shows where to touch.
+    g.font = '38px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('👆', x + 22, lineY + 44 + 6 * Math.sin(now / 160));
   }
 
   const labelStyle = settings.labels === 'off' ? null : settings.labels;
