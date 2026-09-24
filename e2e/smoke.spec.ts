@@ -128,14 +128,13 @@ test('core loop: home, play, violin, song, guided playing, score, reward, garden
       const y = box.y + box.height * 0.5;
       await page.mouse.move(x, y);
       await page.mouse.down();
-      await page.mouse.move(x + 20, y, { steps: 3 });
       await page.mouse.up();
       taps++;
     }
     await page.waitForTimeout(100);
   }
-  // A bow change also plays a new note, so repeated notes can need fewer taps.
-  expect(taps).toBeGreaterThan(8);
+  // One tap = one note: a held or tapped finger must never run ahead through the melody.
+  expect(taps).toBe(17);
   await expect(page.getByText('You played 17 of 17 notes.')).toBeVisible();
 
   // Score -> reward.

@@ -40,6 +40,10 @@ interface TouchInfo {
   x: number;
   y: number;
   pressure?: number;
+  /** Pitch chosen by the game for the current bow stroke (undefined = not asked yet). */
+  guided?: number | null;
+  /** Keep sounding until this time even if the finger lifts (guided songs hold note lengths). */
+  holdUntil?: number;
 }
 
 interface Particle {
@@ -124,6 +128,8 @@ export class ViolinView {
   }
 
   releaseAll(): void {
+    for (const t of this.holdTimers.values()) window.clearTimeout(t);
+    this.holdTimers.clear();
     for (const key of [...this.voices.keys()]) this.apply(key, null);
     this.touches.clear();
   }
@@ -179,6 +185,13 @@ export class ViolinView {
     const lane = this.board.laneAt(x);
     const gesture = new GestureTracker({ width: this.board.area.w, holdFloor: HOLD_FLOOR[settings.assist] });
     const info: TouchInfo = { key: `t${e.pointerId}`, lane, gesture, lastMove: e.timeStamp, x, y, pressure: pressureOf(e) };
+    const pending = this.holdTimers.get(info.key);
+    if (pending !== undefined) {
+      // Same finger id again (mouse, or a fast re-tap): end the held note first.
+      window.clearTimeout(pending);
+      this.holdTimers.delete(info.key);
+      this.apply(info.key, null);
+    }
     this.touches.set(e.pointerId, info);
     const g = gesture.start({ t: e.timeStamp, x, y, pressure: info.pressure });
     const state = this.stateFor(info, g.intensity, g.vibrato, g.direction, false);
@@ -209,12 +222,32 @@ export class ViolinView {
     const info = this.touches.get(e.pointerId);
     if (!info) return;
     this.touches.delete(e.pointerId);
+    const left = (info.holdUntil ?? 0) - performance.now();
+    if (left > 30) {
+      // A quick tap on a long note: let the note ring for its written length.
+      this.holdTimers.set(info.key, window.setTimeout(() => {
+        this.holdTimers.delete(info.key);
+        this.apply(info.key, null);
+      }, left));
+      return;
+    }
     this.apply(info.key, null);
   };
 
+  private holdTimers = new Map<string, number>();
+
+  /** Make the fingers on a lane keep the current note sounding for at least `ms`. */
+  sustain(lane: number, ms: number): void {
+    for (const info of this.touches.values()) if (info.lane === lane) info.holdUntil = performance.now() + ms;
+  }
+
   private stateFor(info: TouchInfo, intensity: number, vibrato: number, direction: BowDirection, bowChanged: boolean): PlayState {
     const open = STRINGS[info.lane].openMidi;
-    const override = this.pitchOverride?.(info.lane) ?? null;
+    // The game picks the pitch once per bow stroke (touch or bow change) and it stays
+    // for the whole stroke, like a real note. Asking every frame made a held finger
+    // jump ahead to the next note early and smear the melody.
+    if (info.guided === undefined || bowChanged) info.guided = this.pitchOverride?.(info.lane) ?? null;
+    const override = info.guided;
     let midi: number;
     if (override !== null) midi = override;
     else if (settings.openStrings) midi = open;

@@ -51,6 +51,8 @@ export function gameScreen(song: Song): Screen {
       if (!running || e.source === 'replay') return;
       const note = game.play(e.lane, e.midi);
       if (!note) return;
+      // Even a quick tap plays the note for its written length, so the tune keeps its rhythm.
+      if (e.source === 'touch') view.sustain(e.lane, note.beats * game.secPerBeat * 900);
       const words = GRADE_WORDS[note.grade!];
       const x = view.board.stringX(e.lane);
       floatWord(screen, words[Math.floor(Math.random() * words.length)], x, hitY(view.board) - 70);
@@ -59,7 +61,7 @@ export function gameScreen(song: Song): Screen {
     view.onNoteOn = (midi, lane, replay) => handleNote({ midi, lane, source: replay ? 'replay' : 'touch' });
 
     // ----- "Listen first": the fairy plays the opening of the song -----
-    const DEMO_NOTES = Math.min(song.notes.length, 12);
+    const DEMO_NOTES = Math.min(song.notes.length, 32);
     let demoStart: number | null = null;
     let demoIdx = -1;
     const stopDemo = () => {
